@@ -1,0 +1,38 @@
+{
+    "name": "montage",
+    "version": "0.10.0",
+    "description": "A UI Framework",
+    "main": "montage",
+    "overlay": {
+        "browser": {
+            "main": "core/core",
+            "exclude": [
+                "lab/benchmarks",
+                "lab/sandbox",
+                "samples",
+                "tools",
+                "examples",
+                "require/test",
+                "require/tests",
+                "etc",
+                "node.js"
+            ],
+            "resources": [
+                "montage.js",
+                "require/require.js",
+                "require/browser.js",
+                "core/next-tick.js",
+                "core/promise.js"
+            ]
+        }
+    },
+    "bin": {
+        "montage": "bin/montage"
+    },
+    "devDependencies": {
+        "test": ">=0.2.1"
+    },
+    "engines": {
+        "node": ">=0.6.0 <0.6.11"
+    }
+}
