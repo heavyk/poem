@@ -1,0 +1,171 @@
+<!doctype html>
+<!-- <copyright>
+Copyright (c) 2012, Motorola Mobility LLC.
+All Rights Reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+* Redistributions of source code must retain the above copyright notice,
+	this list of conditions and the following disclaimer.
+
+* Redistributions in binary form must reproduce the above copyright notice,
+	this list of conditions and the following disclaimer in the documentation
+	and/or other materials provided with the distribution.
+
+* Neither the name of Motorola Mobility LLC nor the names of its
+	contributors may be used to endorse or promote products derived from this
+	software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+</copyright> -->
+<html>
+<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+		<title>Other Component</title>
+
+		<style>
+				.info {
+						background: hsl(0,0%,80%);
+				}
+				.info p {
+						margin: 0;
+						padding: 20px;
+				}
+
+				.tabsnav {
+						 list-style: none;
+						 padding: 0;
+						 margin: 0;
+						 border-bottom: 1px solid #ddd;
+				 }
+
+				 .tabsnav li {
+						 display: inline-block;
+						 padding: 5px 10px;
+						 margin: 0px;
+						 border: 1px solid transparent;
+						 border-bottom: none;
+				 }
+
+				 .tabsnav a {
+						 text-decoration: none;
+				 }
+
+				 .tabsnav li.selected {
+						 background-color: #fff;
+						 border-color: #ddd;
+				 }
+
+				 h1.substitution-content {
+						 height: 100px;
+						 text-align: center;
+						 margin-top: 50px;
+				 }
+		</style>
+
+		<script type="text/montage-serialization">
+				{
+						"owner": {
+								"properties": {
+										"element": {"#": "info"}
+								}
+						},
+			"controller": {
+						"prototype": "montage/ui/controller/array-controller",
+						"properties": {
+								"content":	["legislacion", "tipos", "usos"],
+								"selectedIndexes": [0]
+						}
+				},
+
+				"repetition1": {
+						"prototype": "montage/ui/repetition.reel",
+						"properties": {
+								"element": {
+										"#": "nav"
+								},
+								"isSelectionEnabled": true,
+								"contentController": {"@": "controller"}
+						}
+				},
+				"navItem": {
+						"prototype": "montage/ui/dynamic-text.reel",
+						"properties": {
+								"element": {"#": "nav-item"}
+						},
+						"bindings": {
+								"value": {"<-": "@repetition1.objectAtCurrentIteration"}
+						}
+				},
+				
+				"aditivo": {
+					"prototype": "montage/ui/dynamic-text.reel",
+					"properties": {
+						"element": {"#": "aditivo"}
+					},
+					"bindings": {
+						"value": {"<-": "@owner.aditivo"}
+					}
+				},
+
+				"legislacion": {
+						"prototype": "montage/ui/dynamic-text.reel",
+						"properties": {
+								"value": "Legislacion"
+						}
+				},
+				"tipos": {
+						"prototype": "montage/ui/dynamic-text.reel",
+						"properties": {
+								"value": "Tipos de aditivo"
+						}
+				},
+				"usos": {
+						"prototype": "montage/ui/dynamic-text.reel",
+						"properties": {
+								"value": "Usos"
+						}
+				},
+
+				"content": {
+						"prototype": "montage/ui/substitution.reel",
+						"properties": {
+								"element": {"#": "content"},
+								"switchComponents": {
+										"legislacion": {"@": "legislacion"},
+										"tipos": {"@": "tipos"},
+										"usos": {"@": "usos"}
+								},
+								"switchValue": "legislacion"
+						},
+						"bindings": {
+							"switchValue": {"<->": "@controller.selectedObjects.0"}
+						}
+				}
+				}
+		</script>
+
+</head>
+<body>
+
+	<div data-montage-id="info" class="info">
+		<h2 data-montage-id="aditivo" class="aditivo">...</h2>
+		<ul data-montage-id="nav" class="tabsnav">
+			<li><a href="javascript: void(0);" data-montage-id="nav-item"></a></li>
+		</ul>
+		<h1 data-montage-id="content" class="substitution-content"></h1>
+	</div>
+	
+</body>
+</html>
