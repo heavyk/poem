@@ -1,0 +1,24 @@
+# Meteor packages used by this project, one per line.
+#
+# 'meteor add' and 'meteor remove' will edit this file for you,
+# but you can also edit it by hand.
+
+livescript
+bootstrap
+jquery
+stylus
+amplify
+component
+font-awesome
+audiolet
+jquery-ui
+accounts-base
+accounts-twitter
+accounts-google
+accounts-facebook
+accounts-github
+accounts-password
+accounts-urls
+autopublish
+prelude-ls
+emokit

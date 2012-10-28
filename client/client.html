@@ -1,0 +1,75 @@
+<head>
+	<title>poem client test</title>
+</head>
+
+<body>
+	<ul class="breadcrumb">
+		<li>
+			<a>Home</a> <span class="divider">/</span>
+		</li>
+		<li>
+			<a>Library</a> <span class="divider">/</span>
+		</li>
+		<li class="active">Data</li>
+
+		<li class="pull-right">
+			<ul class="nav nav-pills">
+				<li class="" id="home">
+					<a><i class="icon-home"></i> Home</a>
+				</li>
+				<li id="edit">
+					<a><i class="icon-edit"></i> Edit</a>
+				</li>
+				<li class="" id="login" style="display:none">
+					<a><i class="icon-eye-open"></i> Login</a>
+				</li>
+				<li class="dropdown" id="settings">
+					<a class="dropdown-toggle" data-toggle="dropdown">
+						<i class="icon-tasks"></i> Settings</a>
+					</a>
+					<ul class="dropdown-menu">
+						<li class="nav-header">user</li>
+						<li class="menu-user-settings">
+							<a class="icon-tasks"> Preferences</a>
+						</li>
+						<li class="menu-user-settings">
+							<a class="icon-hdd"> Storage</a>
+						</li>
+						<li class="nav-header">poem</li>
+						<li class="menu-poem-settings">
+							<a><i class="icon-cog"></i> Settings</a>
+						</li>
+						<li class="menu-user-services">
+							<a><i class="icon-certificate"></i> Services</a>
+						</li>
+						<li class="divider"></hr/></li>
+						<li class="menu-logout">
+							<a><i class="icon-eye-close"></i> Logout</a>
+						</li>
+					</ul>
+				</li>
+			</ul>
+			<!-- <span class="divider">|</span> <a><i class="icon-edit"></i> Edit</a> -->
+		</li>
+	</ul>
+	<div class="container-fluid">
+		<div class="row-fluid">
+			<div class="span9" id="content">{{> content}}</div>
+			<div class="span3" id="sidebar"></div>
+		</div>
+	</div>
+</body>
+
+<template name="content">
+	<v class="content">
+		<v>Hello poem World!</v>
+	</v>
+</template>
+
+
+<template name="poem_item">
+	<v class="item poem_item">
+		<v class="item_title">{{name}}</v>
+		<v class="item_description">{{one_line_description}}</v>
+	</v>
+</template>
