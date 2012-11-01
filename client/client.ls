@@ -14,7 +14,7 @@ Meteor.startup ->
 	window.THREE = require 'timoxley-threejs'
 	window.Mousetrap = require 'component-mousetrap'
 	window.sprintf = require 'heavyk-format' .sprintf
-	window.ColorPicker = require 'component-color-picker'
+	window.ColorPicker = require 'heavyk-color-picker'
 	window.Popover = require 'component-popover'
 	
 	page '/', (ctx, next) ->

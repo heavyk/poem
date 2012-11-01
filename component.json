@@ -12,7 +12,7 @@
     "heavyk/format": "*",
     "component/mousetrap": "*",
     "component/popover": "*",
-    "component/color-picker": "*",
+    "heavyk/color-picker": "*",
     "component/upload": "*",
     "component/progress-notification": "*",
     "visionmedia/page.js": "*",
