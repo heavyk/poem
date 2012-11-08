@@ -1,23 +1,22 @@
 
-Meteor.Collection::findOrInsert = (find, data) ->
-	Domain = this
-	if typeof data is \undefined
-		data = find
-	else
-		for k,v of find
-			if typeof data[k] is \undefined
-				data[k] = v
-	that = Domain.findOne find
-	if that
-		Domain.update find, data
-		id = that._id
-	else
-		id = Domain.insert data
-	id
 
 
 Meteor.startup ->
 	
+	hamsternipples = Mun._collection.findOrInsert {
+		name: "hamsternipples"
+	}, {
+		real_name: "Kenny Bentley"
+		dob: new Date('May 28, 1983 06:06:00 -7:00')
+	}
+
+	real_man = Mun._collection.findOrInsert {
+		name: "real_nam"
+	}, {
+		real_name: "Kenny Bentley"
+		dob: new Date('May 28, 1983 06:06:00 -7:00')
+	}
+
 	#if Acc
 	if !hn = Meteor.users.findOne {username: "hamsternipples"}
 		hn = Accounts.createUser {
@@ -28,18 +27,37 @@ Meteor.startup ->
 				name: "Kenny Bentley"
 				dob: new Date('May 28, 1983 06:06:00 -7:00')
 		}
-
-	hamsternipples = Mun._collection.findOrInsert {
-		name: "hamsternipples"
-	}, {
-		user: hn._id
-		real_name: "Kenny Bentley"
-		dob: new Date('May 28, 1983 06:06:00 -7:00')
-	}
+		Meteor.users.update {username: 'hamsternipples'}, {'$set': mun: hamsternipples, muns: [hamsternipples, real_man]}
 
 	#console.log hamsternipples
 	#console.log hn
 	#@setUserId hamsternipples._id
+
+	ResolveBelief._collection.allow {
+		insert: (uuid, doc) ->
+			console.log "ResolveBelief.insert", uuid, doc
+			if uuid then true else false
+		update: (uuid, docs, fields, modifier) ->
+			console.log "ResolveBelief.update", uuid, docs
+			return true
+		remove: (uuid, docs) ->
+			console.log "ResolveBelief.remove", uuid, docs
+			if uuid then true else false
+		#fetch: ['mun']
+	}
+
+	Resolve._collection.allow {
+		insert: (uuid, doc) ->
+			console.log "Resolve.insert", uuid, doc
+			if uuid then true else false
+		update: (uuid, docs, fields, modifier) ->
+			console.log "Resolve.update", uuid, docs
+			return true
+		remove: (uuid, docs) ->
+			console.log "Resolve.remove", uuid, docs
+			if uuid then true else false
+		#fetch: ['mun']
+	}
 
 	r1 = Resolve._collection.findOrInsert {
 		belief: "¿Crees que te conoces?"

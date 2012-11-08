@@ -5,6 +5,7 @@
 .cf
 	clearfix()
 
+// menu (these values will be moved over to the db soon)
 #i_1111
 	border-left: solid 1px #555
 	border-bottom: solid 1px #555
@@ -16,6 +17,8 @@
 		padding-bottom: 5px
 		border-bottom: solid 5px #555
 		margin-bottom: 11px
+	.logout
+		margin-left 3em
 
 a [class^="icon-"]
 	color #555
@@ -64,6 +67,14 @@ a [class^="icon-"]
 #i_1234
 	background-color #000
 
+.headline
+	text-align center
+	form
+		input
+			padding 20px
+		button
+			padding 10px
+
 .resolve
 	min-height 60px
 	border solid 2px #333
@@ -73,18 +84,42 @@ a [class^="icon-"]
 		color rgb(0, 140, 0)
 	h1
 		text-align center
+	.mun
+		float left
+
+.mun-belief
+	display inline-block
+	width 7em
+	.mun
+		float left
+		width 1em
+		height 1em
+		.icon-user
+			font-size 100%
+	.prox
+		border solid 1px #ccc
+		width 4em
+		height 1em
+		float right
+		background-color #eee
+		.prox-belief
+			height 100%
+		.pos
+			margin-left 2em
+			background-color #0c0
+		.neg
+			float right
+			margin-right 2em
+			background-color #c00
 
 .mun
-	#text-align center
-	width 4em
 	.ui-progressbar
-		height 1em
+		height .5em
+		width 100%
 		.ui-progressbar-value
 			margin 0px
 	.name
 		float left
-	.logout
-		margin-left 3em
 	.avatar
 		i
 			font-size 300%
