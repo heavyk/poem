@@ -102,7 +102,7 @@ class Renderable
 					Object.defineProperty obj, k, opts
 					Object.defineProperty dd, k, opts
 			obj.cursor = model["model.collection"].find dd
-			if !obj._id
+			unless obj._id
 				obj._id = Meteor.uuid!
 				Object.defineProperty model, "model.new", {value: obj._id, configurable: true}
 			return dd
@@ -111,15 +111,14 @@ class Renderable
 			d = def_model @, @model, d
 			Object.defineProperty @model, "model.selector", value: d, configurable: true
 			@_class = (if @_class then "#{@_class} " else '') + @model["model.name"]
-		else
-			if !d._id
-				#console.error "TODO: something wrong? rendering a Renderable without an id!", d
-				d._id = Meteor.uuid!
+		else unless d._id
+			#console.error "TODO: something wrong? rendering a Renderable without an id!", d
+			d._id = Meteor.uuid!
 		for own k, v of d
 			@[k] = v
 
 		@_state = 'loading'
-		@_prefix = 'i'
+		@_prefix = 'i' # TODO: this should probably be the collection name!
 		Renderable.obj[@_id] = @
 		Renderable.length++
 		if typeof @_el is \undefined then @_el = 'div'
@@ -257,8 +256,7 @@ Renderable.setup_collection = ->
 		@prototype.render = ->
 			obj = this
 			console.log "prototype.render.cursor", obj.cursor
-			if !obj.cursor
-				return obj.renderFunc ...
+			unless obj.cursor then return obj.renderFunc ...
 			sub_fn = (el, observe_fn) ->
 				return ->
 					debugger
@@ -269,14 +267,14 @@ Renderable.setup_collection = ->
 					list = el.parentNode
 					els = []
 					observers = {
-						render: observe_fn
+						render: -> observe_fn.apply obj, arguments
 						added: (doc, idx) ->
-							e = observers.render.call obj, doc
+							e = observers.render doc
 							#console.log "added", idx, offset, e
 							if e then aC list, e, idx+offset
 							#console.log "observe.added", arguments, @_id
 						changed: (doc, idx, old_obj) ->
-							e = observers.render.call obj, doc
+							e = observers.render doc
 							if cn = list.childNodes[idx+offset]
 								list.replaceChild e, cn
 							#console.log "observe.changed", arguments
@@ -402,12 +400,6 @@ Renderable.setup_render = ->
 						handle = obj.cursor.observe observers
 						$ el .remove!
 						#TODO: call handle.stop when this element no longer exists in the dom
-
-						#$ el .empty!
-						#console.log el
-						#cursor.forEach (doc) ->
-						#	console.log "foreach", el, doc
-						#	aC el, observers.render.call obj, doc
 						
 				Meteor.subscribe.apply this, args +++ sub_fn list_el, @renderFunc
 				#debugger;

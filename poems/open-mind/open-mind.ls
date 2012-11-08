@@ -84,7 +84,7 @@ upsample = (signal, signal2, method = "linear") ->
 	inc = signal2.length / (signal.length-1)
 	ii = 0
 	jj = 0
-	signal2[0] = signal[0]
+	signal2.0 = signal.0
 	for i from 1 til signal.length
 		jj += inc
 		kk = Math.round jj
@@ -369,10 +369,10 @@ class BrainWave extends Renderable3
 											signal <<< color
 											signal.update = true
 										if pop
-											if pop.target[0] is evt.target
+											if pop.target.0 is evt.target
 												noshow = true
 											pop.hide!
-										if !noshow
+										unless noshow
 											pop := new Popover picker.el
 											pop.show evt.target
 								}, cE 'span', {c: 'color-box' s: "background-color: #{color_val}"}
@@ -436,7 +436,7 @@ class AudioComponentGroup extends Renderable
 		@rewire!
 
 	rewire: ->
-		cc = @components[0]
+		cc = @components.0
 		for c in @components
 			cc.connect c
 			cc = c
@@ -507,7 +507,7 @@ class FrequencyBox extends Renderable
 		#debugger
 		for i from 0 til @num_bins
 			sum = 0
-			for j from 0 til bin_size then sum += @data[(i*bin_size)+j]
+			for j til bin_size then sum += @data[(i*bin_size)+j]
 			avg = sum / bin_size
 			bar_width = @width / @num_bins
 			scaled_avg = avg / 256 * @height
