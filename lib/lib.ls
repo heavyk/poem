@@ -87,6 +87,8 @@ class TODO extends RenderableMask
 	render: ->
 		cE 'div' c: 'todo', "TODO: TODO panel"
 
+
+
 class Renderable
 	(dd = {}) ->
 		#if typeof d is \function then d = d!
@@ -99,6 +101,12 @@ class Renderable
 		else !(d = dd) then d = {}
 		#if d._id
 		#else if id then d.=_id
+		console.log "fsm", @fsm, @mask, @
+		if typeof @fsm is \object and @fsm not instanceof Fsm
+			@fsm = new Fsm @fsm
+			@fsm.obj = @
+		@mask ?= new TODO @
+
 		@_observe = let obj = this, model = @model
 			added: (doc, idx) ->
 				Renderable.def_model doc, model, doc, obj
@@ -111,23 +119,15 @@ class Renderable
 				console.log "observe.changed", arguments
 			
 			moved: (doc, idx, new_idx) ->
-				oo = obj._dd.splice idx, 1 .0
-				obj._dd.splice new_idx, 1, oo
 				obj.fsm.handle "moved", doc, idx, new_idx
 				console.log "observe.moved", arguments
 			
 			removed: (doc, idx) ~>
-				obj._dd.splice idx, 0
 				obj.fsm.handle "removed", doc, idx
 				#if cn = list.childNodes[idx+offset]
 				#	list.removeChild cn
-				#console.log "observe.removed", arguments
-		console.log "fsm", @fsm, @mask, @
-		if typeof @fsm is \object
-			@fsm = new Fsm @fsm
-			@fsm.obj = @
-		#@mask ?= new TODO
-
+				console.log "observe.removed", arguments
+		
 		if typeof @model is \object
 			@_new = {}
 			@selector = Renderable.def_model @_new, @model, dd, @
@@ -384,121 +384,8 @@ Renderable.setup_collection = ->
 	if @prototype.model
 		@prototype._dd = []
 		Object.defineProperty @prototype.model, "model.collection", value: @_collection
-		@prototype.fsm = {
-			eventListeners:
-				added: (doc, idx) ~>
-					if idx >= obj._dd.length
-						@obj._dd.push doc
-					else
-						@obj._dd.splice idx, 0, doc
-					console.log "evt.added", idx, doc
-				changed: (doc, idx, old_doc) ~>
-					# TODO: add is.dirty field
-					# TODO: do insert/update on a timeout
-					for own k, v of doc
-						if !_.isEqual old_doc[k], v
-							@obj._dd[idx][k] = v
-							#amplify.publish "#{@_prefix}_#{doc._id}.#{k}", v
-					console.log "evt.changed", arguments
-				moved: (doc, idx, new_idx) ~>
-					#if cn = list.childNodes[idx+offset]
-					#	list.removeChild cn
-					#	aC list, cn, new_idx
-					oo = @_dd.splice idx, 1 .0
-					@_dd.splice new_idx, 1, oo
-					console.log "evt.moved", arguments
-				removed: (doc, idx) ~>
-					@_dd.splice idx, 0
-					#if cn = list.childNodes[idx+offset]
-					#	list.removeChild cn
-					#console.log "ready.removed", arguments
-				saved: (doc) ->
-					console.log "evt.saved", doc
-			states:
-				loading:
-					_onEnter: ~>
-						@obj._state = 'loading'
-						console.log "entered loading state"
-
-					intialize: ->
-						console.log "set to initialized"
-						@transition \ready
-
-					added: (doc, idx) ~>
-						#@_dd.splice idx, 0, doc
-						console.log "loading.added", idx, doc
-
-				ready:
-					_onEnter: ->
-						console.warn "now ready state", @obj, @obj.skip!, @obj.limit!, @obj._dd
-						@obj._state = 'ready'
-						els = []
-						for i til 1#@limit!
-							doc = @obj._dd[i]
-							unless doc then break
-							if @obj.mask
-								els.push @obj.mask.render doc #@obj._new
-						#@render els
-						$ @obj._el .empty!
-						if els.length
-							aC @obj._el, els
-						else
-							@transition \new
-						console.log "docs", @obj._dd, els
-
-					'*': ->
-						console.log "an event in the ready state"
-
-					# these events should modify _dd and also send a message over to the mask
-					added: (doc, idx) ~>
-						#@_dd.splice idx, 0, doc
-						console.log "ready.added", idx, doc
-					changed: (doc, idx, old_doc) ~>
-						# TODO: add is.dirty field
-						# TODO: do insert/update on a timeout
-						#for own k, v of doc
-						#	if !_.isEqual old_doc[k], v
-						#		@_dd[idx][k] = v
-						#		amplify.publish "#{@_prefix}_#{doc._id}.#{k}", v
-						console.log "ready.changed", arguments
-					moved: (doc, idx, new_idx) ~>
-						#if cn = list.childNodes[idx+offset]
-						#	list.removeChild cn
-						#	aC list, cn, new_idx
-						oo = @_dd.splice idx, 1 .0
-						@_dd.splice new_idx, 1, oo
-						console.log "ready.moved", arguments
-					removed: (doc, idx) ~>
-						@_dd.splice idx, 0
-						#if cn = list.childNodes[idx+offset]
-						#	list.removeChild cn
-						#console.log "ready.removed", arguments
-				new:
-					_onEnter: (doc = {}) ->
-						console.log "now in new state", arguments
-						if @obj.mask
-							#TODO: add option to only insert when save is called ...
-							#Renderable.def_model doc, @obj.model, doc, @obj
-							console.log "rendering", @obj.model, @obj.selector
-							aC @obj._el, @obj.mask.render @obj._new
-
-					added: (doc, idx) ->
-						@transition \ready
-					
-					save: (doc) ->
-						delete doc._id
-						id = @obj.model["model.collection"].insert {} <<< doc
-						console.log "new.save",{} <<< doc
-						console.log "new.save",id, doc, @obj.model
-						doc._id = @obj._id = id
-						@fireEvent \saved doc
-						#TODO: @save!
-					error: (err) ->
-						console.log "new.err", err
-					sync: ->
-						console.log "new.save", @
-						@fireEvent \save doc
-		}
+		#@prototype.fsm = {
+			
 	if Meteor.isServer
 		publish @displayName, new Function "id", "return #{@displayName}.find({_id:id})"
 		console.log "publish", @displayName, "id", "return #{@displayName}.find({_id:id})"
@@ -541,14 +428,141 @@ class LoadingMask extends RenderableMask
 # add states ... unloaded, loaded, running, paused
 # publish these events on amplifiyjs
 # later use amplify to simplify requests to gatunes (and other resources)
-class Machina extends Renderable
+
+
+class Machina
+	(d) ->
+		console.log "welcome to machina 0.1"
+
+	#default state machine
+	fsm:
+		eventListeners:
+			added: (doc, idx) ~>
+				if idx >= obj._dd.length
+					@obj._dd.push doc
+				else
+					@obj._dd.splice idx, 0, doc
+				console.log "evt.added", idx, doc
+			changed: (doc, idx, old_doc) ~>
+				# TODO: add is.dirty field
+				# TODO: do insert/update on a timeout
+				for own k, v of doc
+					if typeof v is not \undefined and !_.isEqual old_doc[k], v
+						@obj._dd[idx][k] = v
+						#amplify.publish "#{@_prefix}_#{doc._id}.#{k}", v
+				console.log "evt.changed", arguments
+			moved: (doc, idx, new_idx) ~>
+				#if cn = list.childNodes[idx+offset]
+				#	list.removeChild cn
+				#	aC list, cn, new_idx
+				oo = @obj._dd.splice idx, 1 .0
+				@obj._dd.splice new_idx, 1, oo
+				console.log "evt.moved", arguments
+			removed: (doc, idx) ~>
+				@obj._dd.splice idx, 0
+				#if cn = list.childNodes[idx+offset]
+				#	list.removeChild cn
+				console.log "evt.removed", arguments
+			saved: (doc) ->
+				console.log "evt.saved", doc
+		states:
+			loading:
+				_onEnter: ~>
+					@obj._state = 'loading'
+					console.log "entered loading state"
+
+				intialize: ->
+					console.log "set to initialized"
+					@transition \ready
+
+				added: (doc, idx) ~>
+					#@_dd.splice idx, 0, doc
+					console.log "loading.added", idx, doc
+
+			ready:
+				_onEnter: ->
+					console.warn "now ready state", @obj, @obj.skip!, @obj.limit!, @obj._dd
+					@obj._state = 'ready'
+					els = []
+					for i til 1#@limit!
+						doc = @obj._dd[i]
+						unless doc then break
+						if @obj.mask
+							els.push @obj.mask.render doc #@obj._new
+					#@render els
+					$ @obj._el .empty!
+					if els.length
+						aC @obj._el, els
+					else
+						@transition \new
+					console.log "docs", @obj._dd, els
+
+				'*': ->
+					console.log "an event in the ready state"
+
+				# these events should modify _dd and also send a message over to the mask
+				added: (doc, idx) ~>
+					#@_dd.splice idx, 0, doc
+					console.log "ready.added", idx, doc
+				changed: (doc, idx, old_doc) ~>
+					# TODO: add is.dirty field
+					# TODO: do insert/update on a timeout
+					#for own k, v of doc
+					#	if !_.isEqual old_doc[k], v
+					#		@_dd[idx][k] = v
+					#		amplify.publish "#{@_prefix}_#{doc._id}.#{k}", v
+					console.log "ready.changed", arguments
+				moved: (doc, idx, new_idx) ~>
+					#if cn = list.childNodes[idx+offset]
+					#	list.removeChild cn
+					#	aC list, cn, new_idx
+					oo = @_dd.splice idx, 1 .0
+					@_dd.splice new_idx, 1, oo
+					console.log "ready.moved", arguments
+				removed: (doc, idx) ~>
+					@_dd.splice idx, 0
+					#if cn = list.childNodes[idx+offset]
+					#	list.removeChild cn
+					#console.log "ready.removed", arguments
+			new:
+				_onEnter: (doc = {}) ->
+					console.log "now in new state", arguments
+					if @obj.mask
+						#TODO: add option to only insert when save is called ...
+						#Renderable.def_model doc, @obj.model, doc, @obj
+						console.log "rendering", @obj.model, @obj.selector
+						aC @obj._el, @obj.mask.render @obj._new
+
+				added: (doc, idx) ->
+					@transition \ready
+				
+				save: (doc) ->
+					delete doc._id
+					id = @obj.model["model.collection"].insert {} <<< doc
+					console.log "new.save",{} <<< doc
+					console.log "new.save",id, doc, @obj.model
+					doc._id = @obj._id = id
+					@fireEvent \saved doc
+					#TODO: @save!
+				error: (err) ->
+					console.log "new.err", err
+				sync: ->
+					console.log "new.save", @
+					@fireEvent \save doc
+
+class SaveOnModifyList extends Machina
 	(d) ~>
-		super d
-		# user getter/setter functions
+		console.log "SaveOnModifyList"
+
+	fsm:
+		states:
+			new:
+				save: (doc) ->
+					console.log "Save on modify custom save state"
 
 
 # when entering the loaded state, resize and add the renderer
-class Renderable3 extends Machina
+class Renderable3 extends Renderable
 	(d) ~>
 		super d
 		@camera = new THREE.PerspectiveCamera 75, window.innerWidth / window.innerHeight, 1, 1000
@@ -670,7 +684,7 @@ class Mun extends Verse
 		# automatically make me hamsternipples (for testing)
 		@current = null #Session.get 'mun'
 		@mid = null
-
+/*
 class MunPoem extends Poem
 	(d) ~>
 		super ...
@@ -688,10 +702,9 @@ class MunPoem extends Poem
 							cE 'h3', null, "beliefs"
 							@list 'resolve-mun', resolves, (resolve) ->
 								resolve._view = 'headline'
-								Resolve resolve /* .on '_val:change', ->
-									aC el, Resolve {id: 2, _view: 'headline', belief: "Eres Sincero?"} */
+								Resolve resolve
 						]
 				]
 	Poem.add '/mun/:user', (ctx, next) ->
 		new MunPoem {name: ctx.params.user}
-
+*/

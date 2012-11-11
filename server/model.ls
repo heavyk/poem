@@ -207,7 +207,7 @@ Meteor.startup ->
 	}
 
 	eapp = Poem._collection.findOrInsert {
-		name: \real-man
+		name: \real-mun
 	}, {
 		featured: 'client/featured'
 		version: '0.0.0'
