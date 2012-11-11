@@ -33,7 +33,7 @@ Meteor.startup ->
 	#console.log hn
 	#@setUserId hamsternipples._id
 
-	ResolveBelief._collection.allow {
+	Belief._collection.allow {
 		insert: (uuid, doc) ->
 			console.log "ResolveBelief.insert", uuid, doc
 			if uuid then true else false

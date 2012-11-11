@@ -55,16 +55,15 @@ Meteor.methods {
 
 class RenderableMask #extends Verse
 	(d) ->
-		console.log "renderable mask base class"
+		@_dd = d._dd
+		@obj = d
+		if typeof @render is not \function then ...
+		console.log "renderable mask base class", d, 
 
-
-	render: ->
-		console.log "RENDER"
-
+	_new: null
 	_skip: 0
 	_limit: 10
-
-	@dd = []
+	_dd: []
 	Object.defineProperty @prototype, "skip",
 		get: -> @_skip
 		set: (v) ->
@@ -100,168 +99,64 @@ class Renderable
 		else !(d = dd) then d = {}
 		#if d._id
 		#else if id then d.=_id
-		@_observe =
-			added: (doc, idx) ~>
-				if idx >= @_dd.length
-					@_dd.push doc
+		@_observe = let obj = this, model = @model
+			added: (doc, idx) ->
+				Renderable.def_model doc, model, doc
+				if idx >= obj._dd.length
+					obj._dd.push doc
 				else
-					@_dd.splice idx, 0, doc
-				@fsm.handle "added", doc, idx
-				console.log "observe.added", idx, @_dd.length, doc
-			changed: (doc, idx, old_doc) ~>
+					obj._dd.splice idx, 0, doc
+				obj.fsm.handle "added", doc, idx
+				console.log "observe.added", idx, obj._dd.length, obj
+			changed: (doc, idx, old_doc) ->
 				# TODO: add is.dirty field
 				# TODO: do insert/update on a timeout
 				for own k, v of doc
 					if !_.isEqual old_doc[k], v
-						@_dd[idx][k] = v
+						obj._dd[idx][k] = v
 						#amplify.publish "#{@_prefix}_#{doc._id}.#{k}", v
-				@fsm.handle "changed", doc, idx, old_doc
+				obj.fsm.handle "changed", doc, idx, old_doc
 				console.log "observe.changed", arguments
-			moved: (doc, idx, new_idx) ~>
-				#if cn = list.childNodes[idx+offset]
-				#	list.removeChild cn
-				#	aC list, cn, new_idx
-				oo = @_dd.splice idx, 1 .0
-				@_dd.splice new_idx, 1, oo
-				@fsm.handle "moved", doc, idx, new_idx
+			moved: (doc, idx, new_idx) ->
+				oo = obj._dd.splice idx, 1 .0
+				obj._dd.splice new_idx, 1, oo
+				obj.fsm.handle "moved", doc, idx, new_idx
 				console.log "observe.moved", arguments
 			removed: (doc, idx) ~>
-				@_dd.splice idx, 0
-				@fsm.handle "removed", doc, idx
+				obj._dd.splice idx, 0
+				obj.fsm.handle "removed", doc, idx
 				#if cn = list.childNodes[idx+offset]
 				#	list.removeChild cn
 				#console.log "observe.removed", arguments
-		console.log "fsm", @fsm, @mask
-		@mask ?= new TODO
-		@fsm = new Fsm {
-			states:
-				loading:
-					_onEnter: ~>
-						console.log "entered loading state"
-
-					intialize: ->
-						console.log "set to initialized"
-						@transition \ready
-
-					'*': ->
-						console.log "TODO: set a state of event processing. when able to process, then process, otherwise queue events"
-
-				ready:
-					_onEnter: ~>
-						console.log "now ready state", @, @skip!, @limit!
-						els = []
-						for i til @limit!
-							doc = @_dd[i]
-							unless doc then break
-							if @mask then els.push @mask.render doc
-						#@render els
-						$ @_el .empty!
-						aC @_el, els
-						console.log "docs", @_dd, els
-
-					save: (doc) ->
-						console.log "ready.save", doc
-						@fireEvent \save doc
-					sync: (doc) ->
-						console.log "ready.save", doc
-						@fireEvent \save doc
-					'*': ->
-						console.log "an event in the ready state"
-
-					# these events should modify _dd and also send a message over to the mask
-					added: (doc, idx) ~>
-						#@_dd.splice idx, 0, doc
-						console.log "ready.added", idx, doc
-					changed: (doc, idx, old_doc) ~>
-						# TODO: add is.dirty field
-						# TODO: do insert/update on a timeout
-						#for own k, v of doc
-						#	if !_.isEqual old_doc[k], v
-						#		@_dd[idx][k] = v
-						#		amplify.publish "#{@_prefix}_#{doc._id}.#{k}", v
-						console.log "ready.changed", arguments
-					moved: (doc, idx, new_idx) ~>
-						#if cn = list.childNodes[idx+offset]
-						#	list.removeChild cn
-						#	aC list, cn, new_idx
-						oo = @_dd.splice idx, 1 .0
-						@_dd.splice new_idx, 1, oo
-						console.log "ready.moved", arguments
-					removed: (doc, idx) ~>
-						@_dd.splice idx, 0
-						#if cn = list.childNodes[idx+offset]
-						#	list.removeChild cn
-						#console.log "ready.removed", arguments
-		}
-		console.log "new Fsm", @fsm
-		@fsm.transition \loading
-
-		def_model = (obj, model, dd) ->
-			console.log "def model", model
-			def_prop = !(obj, key, _val) ->
-				val = _val
-				Object.defineProperty obj, key, {
-					enumerable: true
-					get: ~> val
-					set: !(v) ~>
-						#TODO: type verification / validation
-						if typeof val is \undefined then return val = v
-						if _.isEqual v, val then return v
-						console.log "settin", key, v, val, obj.model["model.new"]
-						val = v
-						if k is not "_id" and typeof obj.model["model.new"] is \string
-							delete model["model.new"]
-							data = {}
-							for own k, defs of model
-								#TODO: if k is '_id'
-								#	obj._el.id = "#{obj._prefix}_#{new_id}"
-								data[k] = obj[k] if k is not "_id"
-							data[key] = v
-							console.log "insertin...", v, data
-							new_id = model["model.collection"].insert data
-
-						else if model["model.new"] is not true
-							set = {}
-							set[key] = v
-							console.log "updatin...", obj._id, set
-							model["model.collection"].update {_id: obj._id}, '$set': set
-				}
-
-			_.each model, !(def, k) ->
-				console.log k, "def", def
-				if typeof def.static is \undefined
-					if typeof (v = dd[k]) is \undefined then v = obj[k]
-					def_prop obj, k, v
-				else
-					opts = {enumerable: true}
-					opts[if typeof def.static is \function then "get" else "value"] = def.static
-					Object.defineProperty obj, k, opts
-					Object.defineProperty dd, k, opts
-			obj.cursor = model["model.collection"].find dd
-			console.log "cursor", obj.cursor
-			obj.handle = obj.cursor.observe obj._observe
-			key = model["model.name"]
-			keys = _.keys dd .sort!
-			args = [key]
-			for k in keys
-				v = dd[k]
-				console.log k, v, dd
-				args.push v
-			args.push ~>
-				# TODO: remove the loading icon
-				# TODO: call the renderer in the
-				# TODO: state of the machine is static
-				console.log "subscription.oncomplete", arguments, @
-				obj.fsm.transition \ready
-			console.log "subscribe args", args
-			Meteor.subscribe.apply obj, args
-			unless obj._id
-				obj._id = Meteor.uuid!
-				Object.defineProperty model, "model.new", {value: obj._id, configurable: true}
-			return dd
+		console.log "fsm", @fsm, @mask, @
+		if typeof @fsm is \object
+			@fsm = new Fsm @fsm
+			@fsm.obj = @
+		#@mask ?= new TODO
 
 		if typeof @model is \object
-			d = def_model @, @model, d
+			_new = {}
+			@selector = Renderable.def_model.call @, _new, @model, dd
+			console.warn "cursor.find", @, @model["model.collection"], @selector, "TODO: set model.selector here"
+			@cursor = @model["model.collection"].find @selector
+			console.log "cursor.observe", @cursor, @_observe
+			@handle = @cursor.observe @_observe
+
+			key = @model["model.name"]
+			keys = _.keys @selector .sort!
+			args = [key]
+			for k in keys
+				v = @selector[k]
+				args.push v
+			if keys.length
+				args.push ~>
+					# TODO: remove the loading icon
+					# TODO: call the renderer in the
+					# TODO: state of the machine is static
+					console.log "subscription.oncomplete", arguments, @
+					@fsm.transition \ready
+				console.log "subscribe args", args, @, @_dd
+				Meteor.subscribe.apply @, args
 			Object.defineProperty @model, "model.selector", value: d, configurable: true
 			@_class = (if @_class then "#{@_class} " else '') + @model["model.name"]
 		else unless d._id
@@ -270,14 +165,15 @@ class Renderable
 		for own k, v of d
 			@[k] = v
 
-		@_state = 'loading'
+		@_state = 'unitialized'
+		console.log "new Fsm", @fsm
+		@fsm?transition \loading
 		@_prefix = 'i' # TODO: this should probably be the collection name!
 		Renderable.obj[@_id] = @
 		Renderable.length++
 		if typeof @_el is \undefined then @_el = 'div'
 		@_el = cE @_el, {c: @_class, id: "#{@_prefix}_#{@_id}"}
 
-	_dd: []
 	render: (view, render_func) ->
 		if typeof view is \function
 			render_func = view
@@ -418,176 +314,179 @@ Renderable.show_controls = ->
 Renderable.hide_controls = ->
 	Renderable.forEach (obj, id) ->
 		obj.hide_controls!
+Renderable.def_model = (obj, model, dd) ->
+	console.log "def model", model
+	def_prop = !(obj, prop, _val) ->
+		val = _val
+		Object.defineProperty obj, prop, {
+			enumerable: true
+			get: ~> val
+			set: !(v) ~>
+				#TODO: type verification / validation
+				if typeof val is \undefined then return val = v
+				if _.isEqual v, val then return v
+				console.log "settin", key, v, val, obj["model.new"]
+				val = v
+				/*
+				if k is not "_id" and obj["model.new"]
+					data = {}
+					for own k, defs of model
+						#TODO: if k is '_id'
+						#	obj._el.id = "#{obj._prefix}_#{new_id}"
+						data[k] = obj[k] if k is not "_id"
+					data[key] = v
+					console.log "insertin...", v, data
+					new_id = model["model.collection"].insert data
+
+				else unless obj["model.new"]
+					set = {}
+					set[key] = v
+					console.log "updatin...", obj._id, set
+					model["model.collection"].update {_id: obj._id}, '$set': set
+				//*/
+		}
+
+	for own k, def of model
+		console.log k, "def", def
+		if typeof def.static is \undefined
+			if typeof (v = dd[k]) is \undefined then v = obj[k]
+			def_prop obj, k, v
+		else
+			opts = {enumerable: true}
+			lala = dd[k] = opts.value = if typeof def.static is \function then def.static.call obj else def.static
+			Object.defineProperty obj, k, opts
+			#Object.defineProperty dd, k, opts
+			#lala = dd[k] = obj[k]
+			console.warn "lala", dd, k, lala
+	unless obj._id
+		obj._id = Meteor.uuid!
+		Object.defineProperty obj, "model.new", {value: obj._id, configurable: true}
+	return dd
 Renderable.setup_collection = ->
 	@_collection = new Meteor.Collection @displayName.toLowerCase!
 	if @prototype.model
+		@prototype._dd = []
 		Object.defineProperty @prototype.model, "model.collection", value: @_collection
+		@prototype.fsm = {
+			states:
+				loading:
+					_onEnter: ~>
+						@obj._state = 'loading'
+						console.log "entered loading state"
+
+					intialize: ->
+						console.log "set to initialized"
+						@transition \ready
+
+					'*': ->
+						console.log "TODO: set a state of event processing. when able to process, then process, otherwise queue events"
+					added: (doc, idx) ~>
+						#@_dd.splice idx, 0, doc
+						console.log "loading.added", idx, doc
+
+				ready:
+					_onEnter: ->
+						console.warn "now ready state", @obj, @obj.skip!, @obj.limit!, @obj._dd
+						@obj._state = 'ready'
+						els = []
+						for i til 1#@limit!
+							doc = @obj._dd[i]
+							unless doc then break
+							if @obj.mask
+								els.push @obj.mask.render doc
+						#@render els
+						$ @obj._el .empty!
+						if els.length
+							aC @obj._el, els
+						else
+							@transition \new
+						console.log "docs", @obj._dd, els
+
+					'*': ->
+						console.log "an event in the ready state"
+
+					# these events should modify _dd and also send a message over to the mask
+					added: (doc, idx) ~>
+						#@_dd.splice idx, 0, doc
+						console.log "ready.added", idx, doc
+					changed: (doc, idx, old_doc) ~>
+						# TODO: add is.dirty field
+						# TODO: do insert/update on a timeout
+						#for own k, v of doc
+						#	if !_.isEqual old_doc[k], v
+						#		@_dd[idx][k] = v
+						#		amplify.publish "#{@_prefix}_#{doc._id}.#{k}", v
+						console.log "ready.changed", arguments
+					moved: (doc, idx, new_idx) ~>
+						#if cn = list.childNodes[idx+offset]
+						#	list.removeChild cn
+						#	aC list, cn, new_idx
+						oo = @_dd.splice idx, 1 .0
+						@_dd.splice new_idx, 1, oo
+						console.log "ready.moved", arguments
+					removed: (doc, idx) ~>
+						@_dd.splice idx, 0
+						#if cn = list.childNodes[idx+offset]
+						#	list.removeChild cn
+						#console.log "ready.removed", arguments
+				new:
+					_onEnter: (doc = {}) ->
+						console.log "now in new state", arguments
+						if @obj.mask
+							#dd = Renderable.def_model doc, @obj.model, doc
+							console.log "rendering", @obj.selector
+							aC @obj._el, @obj.mask.render @obj.selector
+
+					added: (doc, idx) ->
+						@transition \ready
+					save: ->
+						console.log "new.save", @
+						@fireEvent \save doc
+						#TODO: @save!
+					error: (err) ->
+						console.log "new.save", err
+					sync: ->
+						console.log "new.save", @
+						@fireEvent \save doc
+		}
+	if Meteor.isServer
+		publish @displayName, new Function "id", "return #{@displayName}.find({_id:id})"
+		console.log "publish", @displayName, "id", "return #{@displayName}.find({_id:id})"
 	for k in Meteor.Collection.DB_FUNCS
 		let c = @_collection
 			if typeof(v = c[k]) is \function
 				@[k] = ->
 					v.apply c, arguments
-	if @prototype.renderFunc
-		displayName = @displayName
-		/*
-		@prototype.render = ->
-			obj = this
-			cE typeof(@_el) is string @_el or cE @_el id: "#{prefix}_#{_id}" c: @displayName, (el) ->
-				cE 'div' c: \todo, "TODO: render func"
-			console.log "prototype.render.cursor", obj.cursor
-			unless obj.cursor then return obj.renderFunc ...
-			sub_fn = (el, observe_fn) ->
-				return ->
-					debugger
-					offset = 0
-					list = el
-					while list = list.previousSibling
-						offset++
-					list = el.parentNode
-					els = []
-					observers = {
-						render: -> observe_fn.apply obj, arguments
-						added: (doc, idx) ->
-							e = observers.render doc
-							#console.log "added", idx, offset, e
-							if e then aC list, e, idx+offset
-							#console.log "observe.added", arguments, @_id
-						changed: (doc, idx, old_obj) ->
-							e = observers.render doc
-							if cn = list.childNodes[idx+offset]
-								list.replaceChild e, cn
-							#console.log "observe.changed", arguments
-						moved: (doc, idx, new_idx) ->
-							if cn = list.childNodes[idx+offset]
-								list.removeChild cn
-								aC list, cn, new_idx
-							console.log "observe.moved", arguments
-						removed: (doc, idx) ->
-							if cn = list.childNodes[idx+offset]
-								list.removeChild cn
-							#console.log "observe.removed", arguments
-					}
-
-					if typeof observe_fn is \function
-						observers.render = observe_fn
-					
-					handle = cursor.observe observers
-					#$ el .remove!
-					#TODO: call handle.stop when this element no longer exists in the dom
-
-					#$ el .empty!
-					#console.log el
-					#cursor.forEach (doc) ->
-					#	console.log "foreach", el, doc
-					#	aC el, observers.render.call obj, doc
-			*/	
-			
-			#Meteor.subscribe.apply this, args +++ sub_fn list_el, @renderFunc
-			#debugger;
-			#console.log obj.render!
-			#return list_el
 Renderable.setup_render = ->
-	# TODO: recurse through superclasses until a collection is found
+	while (s = @.prototype.superclass) and (m = s.prototype.model)
+		console.log m
+		for own field, def of m
+			if typeof @prototype.model[field] is \undefined then @prototype.model[field] = def
+			else for k, v of def
+				if typeof @prototype.model[field][k] is \undefined then @prototype.model[field][k] = v
+	console.log "model", @prototype.model
+	fields = []
+	find_fields = []
+	for own field, def of @prototype.model
+		if def.index is true
+			fields.push field
+			find_fields.push "#{field}:#{field}"
+	fields.sort!
 	if Meteor.isServer
-		#console.log "MunBelief.prototype.model", @prototype.model, @superclass.prototype.model
-		fields = []
-		find_fields = []
-		for own field, def of @prototype.model
-			if def.required is true
-				fields.push field
-				find_fields.push "#{field}:#{field}"
-		fields.sort!
+		# I think here, perhaps (not sure yet that) I need to serialize the creation args 
 		publish @displayName, new Function fields * ',', "return #{@superclass.displayName}.find({#{find_fields * ','}})"
-		#console.log "publish", @displayName, fields * ',', "return #{@superclass.displayName}.find({#{find_fields * ','}})"
+		console.log "publish", @displayName, fields * ',', "return #{@superclass.displayName}.find({#{find_fields * ','}})"
 	else
 		Object.defineProperty @prototype.model, "model.name", value: @displayName
 		Object.defineProperty @prototype.model, "model.collection", value: @superclass.prototype.model["model.collection"]
-		for field, def of @superclass.prototype.model
-			if typeof @prototype.model[field] is \undefined
-				@prototype.model[field] = def
-		/*
-		if @prototype.renderFunc
-			@prototype.render = ->
-				obj = this
-				selector = obj.cursor.selector
-				keys = _.keys selector .sort!
-				args = [publish_key = displayName]
-				for k in keys
-					v = selector[k]
-					args.push v
+		
 
-				list_el = cE 'div' c: "loading #{displayName}", "loading..." #@renderFunc!
-				#console.log "args", args
-				#console.log "prototype.render.cursor", obj.cursor
+class LoadingMask extends RenderableMask
+	(d) ~>
+		console.log "LoadingMask", d
 
-				if !obj.cursor
-					return obj.renderFunc ...
-				sub_fn = (el, observe_fn) ->
-					return ->
-						#debugger
-						offset = 0
-						list = el
-						while list = list.previousSibling
-							offset++
-						list = el.parentNode
-						els = []
-						observers = {
-							render: observe_fn
-							added: (doc, idx) ->
-								if typeof (id = obj.model["model.new"]) is \string
-									obj.model["model.new"] = true
-									$ el .remove!
-									for own k,v of doc
-										console.log "k", k, "v:", v
-										obj[k] = v
-									delete obj.model["model.new"]
-									#obj.update id, observers.render
-								else id = doc._id
-									console.log "doc.id", id, doc, obj
-									for own k,v of doc
-										console.log "k:", k, "v:", v
-										obj[k] = v
-									e = cE 'div', {id: "#{obj._prefix}_#{id}", c: publish_key},
-										observers.render.apply obj, e
-
-								console.log "added", idx, offset, id, obj, doc, e
-
-								if e then aC list, e, idx+offset
-								#console.log "observe.added", arguments, @_id
-							changed: (doc, idx, old_obj) ->
-								# TODO: add is.dirty field
-								# TODO: do insert/update on a timeout
-								obj.model["model.new"] = true
-								for own k, v of doc
-									obj[k] = v
-								delete obj.model["model.new"]
-								e = observers.render.apply obj, doc
-								if cn = list.childNodes[idx+offset]
-									list.replaceChild e, cn
-								console.log "observe.changed", arguments
-							moved: (doc, idx, new_idx) ->
-								if cn = list.childNodes[idx+offset]
-									list.removeChild cn
-									aC list, cn, new_idx
-								console.log "observe.moved", arguments
-							removed: (doc, idx) ->
-								if cn = list.childNodes[idx+offset]
-									list.removeChild cn
-								#console.log "observe.removed", arguments
-						}
-
-						if typeof observe_fn is \function
-							observers.render = observe_fn
-						
-						handle = obj.cursor.observe observers
-						#$ el .remove!
-						#TODO: call handle.stop when this element no longer exists in the dom
-						
-				Meteor.subscribe.apply this, args +++ sub_fn list_el, obj.renderFunc
-				#debugger;
-				#console.log obj.render!
-				return list_el
-				*/
+	render: (d) ->
+		cE 'div' c: 'loading', "loading..."
 
 # add states ... unloaded, loaded, running, paused
 # publish these events on amplifiyjs
