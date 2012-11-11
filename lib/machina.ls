@@ -91,6 +91,7 @@ class Fsm
 				oldState
 				newState
 			]
+			@states[oldState]._onExit.call this if @states[oldState]?_onExit
 			@states[newState]._onEnter.call this if @states[newState]._onEnter
 			if @targetReplayState is newState then @processQueue NEXT_TRANSITION
 			return 

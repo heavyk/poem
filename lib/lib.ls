@@ -101,27 +101,21 @@ class Renderable
 		#else if id then d.=_id
 		@_observe = let obj = this, model = @model
 			added: (doc, idx) ->
-				Renderable.def_model doc, model, doc
-				if idx >= obj._dd.length
-					obj._dd.push doc
-				else
-					obj._dd.splice idx, 0, doc
+				Renderable.def_model doc, model, doc, obj
+				# TODO: move these over to the fsm (when I get fsm's working better)
 				obj.fsm.handle "added", doc, idx
 				console.log "observe.added", idx, obj._dd.length, obj
+			
 			changed: (doc, idx, old_doc) ->
-				# TODO: add is.dirty field
-				# TODO: do insert/update on a timeout
-				for own k, v of doc
-					if !_.isEqual old_doc[k], v
-						obj._dd[idx][k] = v
-						#amplify.publish "#{@_prefix}_#{doc._id}.#{k}", v
 				obj.fsm.handle "changed", doc, idx, old_doc
 				console.log "observe.changed", arguments
+			
 			moved: (doc, idx, new_idx) ->
 				oo = obj._dd.splice idx, 1 .0
 				obj._dd.splice new_idx, 1, oo
 				obj.fsm.handle "moved", doc, idx, new_idx
 				console.log "observe.moved", arguments
+			
 			removed: (doc, idx) ~>
 				obj._dd.splice idx, 0
 				obj.fsm.handle "removed", doc, idx
@@ -135,8 +129,8 @@ class Renderable
 		#@mask ?= new TODO
 
 		if typeof @model is \object
-			_new = {}
-			@selector = Renderable.def_model.call @, _new, @model, dd
+			@_new = {}
+			@selector = Renderable.def_model @_new, @model, dd, @
 			console.warn "cursor.find", @, @model["model.collection"], @selector, "TODO: set model.selector here"
 			@cursor = @model["model.collection"].find @selector
 			console.log "cursor.observe", @cursor, @_observe
@@ -314,19 +308,30 @@ Renderable.show_controls = ->
 Renderable.hide_controls = ->
 	Renderable.forEach (obj, id) ->
 		obj.hide_controls!
-Renderable.def_model = (obj, model, dd) ->
+Renderable.def_model = (obj, model, dd, ctx) ->
 	console.log "def model", model
 	def_prop = !(obj, prop, _val) ->
+		console.warn "def prop" prop, _val, obj
 		val = _val
 		Object.defineProperty obj, prop, {
 			enumerable: true
-			get: ~> val
-			set: !(v) ~>
+			get: -> val
+			set: (v) ->
 				#TODO: type verification / validation
-				if typeof val is \undefined then return val = v
+				#if typeof val is \undefined then return val = v
 				if _.isEqual v, val then return v
-				console.log "settin", key, v, val, obj["model.new"]
+				console.log "settin", prop, v, val, obj["model.new"], ctx
 				val = v
+				if obj["model.new"]
+					if prop is not "_id"
+						#data = {}
+						#for k,kv of obj
+						#	data[k] = kv if k is not "_id"
+						#data[prop] = v
+						debugger
+						if ctx then ctx.fsm.handle \save obj
+				else unless obj["model.new"]
+					ctx.fsm.handle \change obj
 				/*
 				if k is not "_id" and obj["model.new"]
 					data = {}
@@ -334,27 +339,33 @@ Renderable.def_model = (obj, model, dd) ->
 						#TODO: if k is '_id'
 						#	obj._el.id = "#{obj._prefix}_#{new_id}"
 						data[k] = obj[k] if k is not "_id"
-					data[key] = v
+					data[prop] = v
 					console.log "insertin...", v, data
 					new_id = model["model.collection"].insert data
 
 				else unless obj["model.new"]
 					set = {}
-					set[key] = v
+					set[prop] = v
 					console.log "updatin...", obj._id, set
 					model["model.collection"].update {_id: obj._id}, '$set': set
-				//*/
+				#*/
+				return v
 		}
 
 	for own k, def of model
 		console.log k, "def", def
-		if typeof def.static is \undefined
+		if typeof def.static is \undefined and typeof def.default is \undefined
 			if typeof (v = dd[k]) is \undefined then v = obj[k]
 			def_prop obj, k, v
 		else
 			opts = {enumerable: true}
-			lala = dd[k] = opts.value = if typeof def.static is \function then def.static.call obj else def.static
+			if def.static
+				opts.value = if typeof def.static is \function then def.static.call obj else def.static
+			else
+				opts[if typeof def.default is \function then "get" else "value"] = def.default
 			Object.defineProperty obj, k, opts
+			console.log "Object.defineProperty", k, opts
+			lala = dd[k] = obj[k]
 			#Object.defineProperty dd, k, opts
 			#lala = dd[k] = obj[k]
 			console.warn "lala", dd, k, lala
@@ -363,11 +374,46 @@ Renderable.def_model = (obj, model, dd) ->
 		Object.defineProperty obj, "model.new", {value: obj._id, configurable: true}
 	return dd
 Renderable.setup_collection = ->
+	s = @
+	while (s = s.superclass) and (m = s.prototype.model)
+		for own field, def of m
+			if typeof @prototype.model[field] is \undefined then @prototype.model[field] = def
+			else for k, v of def
+				if typeof @prototype.model[field][k] is \undefined then @prototype.model[field][k] = v
 	@_collection = new Meteor.Collection @displayName.toLowerCase!
 	if @prototype.model
 		@prototype._dd = []
 		Object.defineProperty @prototype.model, "model.collection", value: @_collection
 		@prototype.fsm = {
+			eventListeners:
+				added: (doc, idx) ~>
+					if idx >= obj._dd.length
+						@obj._dd.push doc
+					else
+						@obj._dd.splice idx, 0, doc
+					console.log "evt.added", idx, doc
+				changed: (doc, idx, old_doc) ~>
+					# TODO: add is.dirty field
+					# TODO: do insert/update on a timeout
+					for own k, v of doc
+						if !_.isEqual old_doc[k], v
+							@obj._dd[idx][k] = v
+							#amplify.publish "#{@_prefix}_#{doc._id}.#{k}", v
+					console.log "evt.changed", arguments
+				moved: (doc, idx, new_idx) ~>
+					#if cn = list.childNodes[idx+offset]
+					#	list.removeChild cn
+					#	aC list, cn, new_idx
+					oo = @_dd.splice idx, 1 .0
+					@_dd.splice new_idx, 1, oo
+					console.log "evt.moved", arguments
+				removed: (doc, idx) ~>
+					@_dd.splice idx, 0
+					#if cn = list.childNodes[idx+offset]
+					#	list.removeChild cn
+					#console.log "ready.removed", arguments
+				saved: (doc) ->
+					console.log "evt.saved", doc
 			states:
 				loading:
 					_onEnter: ~>
@@ -378,8 +424,6 @@ Renderable.setup_collection = ->
 						console.log "set to initialized"
 						@transition \ready
 
-					'*': ->
-						console.log "TODO: set a state of event processing. when able to process, then process, otherwise queue events"
 					added: (doc, idx) ~>
 						#@_dd.splice idx, 0, doc
 						console.log "loading.added", idx, doc
@@ -393,7 +437,7 @@ Renderable.setup_collection = ->
 							doc = @obj._dd[i]
 							unless doc then break
 							if @obj.mask
-								els.push @obj.mask.render doc
+								els.push @obj.mask.render doc #@obj._new
 						#@render els
 						$ @obj._el .empty!
 						if els.length
@@ -433,18 +477,24 @@ Renderable.setup_collection = ->
 					_onEnter: (doc = {}) ->
 						console.log "now in new state", arguments
 						if @obj.mask
-							#dd = Renderable.def_model doc, @obj.model, doc
-							console.log "rendering", @obj.selector
-							aC @obj._el, @obj.mask.render @obj.selector
+							#TODO: add option to only insert when save is called ...
+							#Renderable.def_model doc, @obj.model, doc, @obj
+							console.log "rendering", @obj.model, @obj.selector
+							aC @obj._el, @obj.mask.render @obj._new
 
 					added: (doc, idx) ->
 						@transition \ready
-					save: ->
-						console.log "new.save", @
-						@fireEvent \save doc
+					
+					save: (doc) ->
+						delete doc._id
+						id = @obj.model["model.collection"].insert {} <<< doc
+						console.log "new.save",{} <<< doc
+						console.log "new.save",id, doc, @obj.model
+						doc._id = @obj._id = id
+						@fireEvent \saved doc
 						#TODO: @save!
 					error: (err) ->
-						console.log "new.save", err
+						console.log "new.err", err
 					sync: ->
 						console.log "new.save", @
 						@fireEvent \save doc
@@ -458,8 +508,8 @@ Renderable.setup_collection = ->
 				@[k] = ->
 					v.apply c, arguments
 Renderable.setup_render = ->
-	while (s = @.prototype.superclass) and (m = s.prototype.model)
-		console.log m
+	s = @
+	while (s = s.superclass) and (m = s.prototype.model)
 		for own field, def of m
 			if typeof @prototype.model[field] is \undefined then @prototype.model[field] = def
 			else for k, v of def
