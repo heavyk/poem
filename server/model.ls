@@ -272,3 +272,14 @@ Meteor.startup ->
 		description: "social media player"
 		tagline: "mind blowing!"
 	}
+
+	eapp = Poem._collection.findOrInsert {
+		name: \todo4d
+	}, {
+		featured: 'client/suggested'
+		version: '0.0.0'
+		icon: 'list-ol'
+		title: "TODOs in 4D"
+		description: "todo lists in for dimensions!"
+		tagline: "mind blowing!"
+	}
