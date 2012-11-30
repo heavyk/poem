@@ -1,4 +1,5 @@
 
+#TODO: look at the model and find based on the index and insert data with default values
 Meteor.Collection.DB_FUNCS = <[find findOne findOrInsert insert update remove]>
 Meteor.Collection::findOrInsert = (find, data) ->
 	Domain = this
@@ -16,10 +17,21 @@ Meteor.Collection::findOrInsert = (find, data) ->
 		id = Domain.insert data
 	id
 
+deep_extend = (obj, ...srcs) ->
+	if srcs.length and typeof obj is \object
+		for src in srcs
+			if typeof src is \object
+				for own k, v of src
+					vv = obj[k]
+					obj[k] = if typeof v is \object and typeof vv is \object then deep_extend vv, v else v
+	return obj
 
 if Meteor.isServer
-	publish = (key, cursor_fn) ->
-		console.log "publishing #key"
+	publish = (key, cursor_fn2) ->
+		console.log "publishing #key", cursor_fn
+		cursor_fn = ->
+			console.log "cursor_fn", arguments
+			cursor_fn2 ...
 		Meteor.publish key, !->
 			cursor = cursor_fn.apply this, arguments
 			collection = cursor.collection_name
@@ -88,7 +100,6 @@ class TODO extends RenderableMask
 		cE 'div' c: 'todo', "TODO: TODO panel"
 
 
-
 class Renderable
 	(dd = {}) ->
 		#if typeof d is \function then d = d!
@@ -98,36 +109,44 @@ class Renderable
 		else if typeof dd is \object and dd._id
 			d = Renderable.obj[dd]
 		if d then return d
-		else !(d = dd) then d = {}
+		else if !(d = dd) then d = {}
 		#if d._id
 		#else if id then d.=_id
-		console.log "fsm", @fsm, @mask, @
-		if typeof @fsm is \object and @fsm not instanceof Fsm
-			@fsm = new Fsm @fsm
-			@fsm.obj = @
-		@mask ?= new TODO @
+		switch typeof @machina
+		| \function => @machina = new @machina @
+		| \object =>
+			if @machina not instanceof Machina
+				@machina = new Machina @, @machina
+		#| _ => @machina = new Machina @
+		
+		switch typeof @mask
+		| \function => @mask = new @mask @
+		| \object =>
+			if @mask not instanceof Mask
+				@mask = new Mask @, @mask
 
 		@_observe = let obj = this, model = @model
 			added: (doc, idx) ->
 				Renderable.def_model doc, model, doc, obj
 				# TODO: move these over to the fsm (when I get fsm's working better)
-				obj.fsm.handle "added", doc, idx
+				obj.machina.emit "added", doc, idx
 				console.log "observe.added", idx, obj._dd.length, obj
 			
 			changed: (doc, idx, old_doc) ->
-				obj.fsm.handle "changed", doc, idx, old_doc
+				obj.machina.emit "changed", doc, idx, old_doc
 				console.log "observe.changed", arguments
 			
 			moved: (doc, idx, new_idx) ->
-				obj.fsm.handle "moved", doc, idx, new_idx
+				obj.machina.emit "moved", doc, idx, new_idx
 				console.log "observe.moved", arguments
 			
 			removed: (doc, idx) ~>
-				obj.fsm.handle "removed", doc, idx
+				obj.machina.emit "removed", doc, idx
 				#if cn = list.childNodes[idx+offset]
 				#	list.removeChild cn
 				console.log "observe.removed", arguments
 		
+		console.error @
 		if typeof @model is \object
 			@_new = {}
 			@selector = Renderable.def_model @_new, @model, dd, @
@@ -148,10 +167,10 @@ class Renderable
 					# TODO: call the renderer in the
 					# TODO: state of the machine is static
 					console.log "subscription.oncomplete", arguments, @
-					@fsm.transition \ready
+					@machina.transition \ready
 				console.log "subscribe args", args, @, @_dd
 				Meteor.subscribe.apply @, args
-			Object.defineProperty @model, "model.selector", value: d, configurable: true
+			Object.defineProperty @model, "model.selector", {value: d, +configurable}
 			@_class = (if @_class then "#{@_class} " else '') + @model["model.name"]
 		else unless d._id
 			#console.error "TODO: something wrong? rendering a Renderable without an id!", d
@@ -201,7 +220,7 @@ class Renderable
 		return @
 
 	emit: (evt, ...args) ->
-		amplify.publish.call @, ["#{@_id}:#{evt}"] +++ args
+		amplify.publish.call @, ["#{@_id}:#{evt}"] ++ args
 		return @
 
 	_limit: 10
@@ -290,7 +309,7 @@ class Renderable
 			args.push v
 
 		list_el = cE 'div', {c:"list-#{key}"}, "loading..."
-		Meteor.subscribe.apply this, args +++ sub_fn list_el, fn
+		Meteor.subscribe.apply this, args ++ sub_fn list_el, fn
 		#debugger;
 		#console.log obj.render!
 		return list_el
@@ -314,7 +333,7 @@ Renderable.def_model = (obj, model, dd, ctx) ->
 		console.warn "def prop" prop, _val, obj
 		val = _val
 		Object.defineProperty obj, prop, {
-			enumerable: true
+			+enumerable
 			get: -> val
 			set: (v) ->
 				#TODO: type verification / validation
@@ -329,9 +348,9 @@ Renderable.def_model = (obj, model, dd, ctx) ->
 						#	data[k] = kv if k is not "_id"
 						#data[prop] = v
 						debugger
-						if ctx then ctx.fsm.handle \save obj
+						if ctx then ctx.machina.emit \save obj
 				else unless obj["model.new"]
-					ctx.fsm.handle \change obj
+					ctx.machina.emit \change obj
 				/*
 				if k is not "_id" and obj["model.new"]
 					data = {}
@@ -358,7 +377,7 @@ Renderable.def_model = (obj, model, dd, ctx) ->
 			if typeof (v = dd[k]) is \undefined then v = obj[k]
 			def_prop obj, k, v
 		else
-			opts = {enumerable: true}
+			opts = {+enumerable}
 			if def.static
 				opts.value = if typeof def.static is \function then def.static.call obj else def.static
 			else
@@ -384,11 +403,11 @@ Renderable.setup_collection = ->
 	if @prototype.model
 		@prototype._dd = []
 		Object.defineProperty @prototype.model, "model.collection", value: @_collection
-		#@prototype.fsm = {
-			
 	if Meteor.isServer
 		publish @displayName, new Function "id", "return #{@displayName}.find({_id:id})"
 		console.log "publish", @displayName, "id", "return #{@displayName}.find({_id:id})"
+	else
+		Object.defineProperty @prototype.model, "model.name", value: @displayName
 	for k in Meteor.Collection.DB_FUNCS
 		let c = @_collection
 			if typeof(v = c[k]) is \function
@@ -428,137 +447,6 @@ class LoadingMask extends RenderableMask
 # add states ... unloaded, loaded, running, paused
 # publish these events on amplifiyjs
 # later use amplify to simplify requests to gatunes (and other resources)
-
-
-class Machina
-	(d) ->
-		console.log "welcome to machina 0.1"
-
-	#default state machine
-	fsm:
-		eventListeners:
-			added: (doc, idx) ~>
-				if idx >= obj._dd.length
-					@obj._dd.push doc
-				else
-					@obj._dd.splice idx, 0, doc
-				console.log "evt.added", idx, doc
-			changed: (doc, idx, old_doc) ~>
-				# TODO: add is.dirty field
-				# TODO: do insert/update on a timeout
-				for own k, v of doc
-					if typeof v is not \undefined and !_.isEqual old_doc[k], v
-						@obj._dd[idx][k] = v
-						#amplify.publish "#{@_prefix}_#{doc._id}.#{k}", v
-				console.log "evt.changed", arguments
-			moved: (doc, idx, new_idx) ~>
-				#if cn = list.childNodes[idx+offset]
-				#	list.removeChild cn
-				#	aC list, cn, new_idx
-				oo = @obj._dd.splice idx, 1 .0
-				@obj._dd.splice new_idx, 1, oo
-				console.log "evt.moved", arguments
-			removed: (doc, idx) ~>
-				@obj._dd.splice idx, 0
-				#if cn = list.childNodes[idx+offset]
-				#	list.removeChild cn
-				console.log "evt.removed", arguments
-			saved: (doc) ->
-				console.log "evt.saved", doc
-		states:
-			loading:
-				_onEnter: ~>
-					@obj._state = 'loading'
-					console.log "entered loading state"
-
-				intialize: ->
-					console.log "set to initialized"
-					@transition \ready
-
-				added: (doc, idx) ~>
-					#@_dd.splice idx, 0, doc
-					console.log "loading.added", idx, doc
-
-			ready:
-				_onEnter: ->
-					console.warn "now ready state", @obj, @obj.skip!, @obj.limit!, @obj._dd
-					@obj._state = 'ready'
-					els = []
-					for i til 1#@limit!
-						doc = @obj._dd[i]
-						unless doc then break
-						if @obj.mask
-							els.push @obj.mask.render doc #@obj._new
-					#@render els
-					$ @obj._el .empty!
-					if els.length
-						aC @obj._el, els
-					else
-						@transition \new
-					console.log "docs", @obj._dd, els
-
-				'*': ->
-					console.log "an event in the ready state"
-
-				# these events should modify _dd and also send a message over to the mask
-				added: (doc, idx) ~>
-					#@_dd.splice idx, 0, doc
-					console.log "ready.added", idx, doc
-				changed: (doc, idx, old_doc) ~>
-					# TODO: add is.dirty field
-					# TODO: do insert/update on a timeout
-					#for own k, v of doc
-					#	if !_.isEqual old_doc[k], v
-					#		@_dd[idx][k] = v
-					#		amplify.publish "#{@_prefix}_#{doc._id}.#{k}", v
-					console.log "ready.changed", arguments
-				moved: (doc, idx, new_idx) ~>
-					#if cn = list.childNodes[idx+offset]
-					#	list.removeChild cn
-					#	aC list, cn, new_idx
-					oo = @_dd.splice idx, 1 .0
-					@_dd.splice new_idx, 1, oo
-					console.log "ready.moved", arguments
-				removed: (doc, idx) ~>
-					@_dd.splice idx, 0
-					#if cn = list.childNodes[idx+offset]
-					#	list.removeChild cn
-					#console.log "ready.removed", arguments
-			new:
-				_onEnter: (doc = {}) ->
-					console.log "now in new state", arguments
-					if @obj.mask
-						#TODO: add option to only insert when save is called ...
-						#Renderable.def_model doc, @obj.model, doc, @obj
-						console.log "rendering", @obj.model, @obj.selector
-						aC @obj._el, @obj.mask.render @obj._new
-
-				added: (doc, idx) ->
-					@transition \ready
-				
-				save: (doc) ->
-					delete doc._id
-					id = @obj.model["model.collection"].insert {} <<< doc
-					console.log "new.save",{} <<< doc
-					console.log "new.save",id, doc, @obj.model
-					doc._id = @obj._id = id
-					@fireEvent \saved doc
-					#TODO: @save!
-				error: (err) ->
-					console.log "new.err", err
-				sync: ->
-					console.log "new.save", @
-					@fireEvent \save doc
-
-class SaveOnModifyList extends Machina
-	(d) ~>
-		console.log "SaveOnModifyList"
-
-	fsm:
-		states:
-			new:
-				save: (doc) ->
-					console.log "Save on modify custom save state"
 
 
 # when entering the loaded state, resize and add the renderer

@@ -1,19 +1,13 @@
 {
   "name": "poem",
   "version": "0.0.1",
-  "main": [
-    "./loader.js",
-    "./lib/lib.ls",
-    "./client.html",
-    "./client.styl",
-    "./client.ls"
-  ],
   "dependencies": {
-    "heavyk/format": "*",
     "component/mousetrap": "*",
     "component/popover": "*",
     "heavyk/color-picker": "*",
+    "heavyk/format": "*",
     "component/upload": "*",
+    "component/to-function": "*",
     "component/progress-notification": "*",
     "visionmedia/page.js": "*",
     "timoxley/threejs": "*"

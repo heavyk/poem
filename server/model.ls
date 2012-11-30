@@ -87,6 +87,29 @@ Meteor.startup ->
 		mun: hamsternipples
 	}
 
+	todo1 = TodoTask._collection.findOrInsert {
+		desc: "something important"
+	}, {
+		status: "not started"
+		mun: hamsternipples
+	}
+
+	todo1 = TodoTask._collection.findOrInsert {
+		desc: "something more important"
+	}, {
+		status: "not started"
+		mun: hamsternipples
+	}
+
+	todo1 = TodoTask._collection.findOrInsert {
+		desc: "something even more important"
+	}, {
+		status: "not started"
+		mun: hamsternipples
+	}
+
+	
+
 	home = Poem._collection.findOrInsert {
 		name: \home
 	}, {

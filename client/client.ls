@@ -8,6 +8,22 @@ col = (col, total, ...args) ->
 	cE 'div', {c: "col-#{col}-#{total}"},
 		cE 'div', {c: 'content'}, args
 
+Meteor.autorun ->
+	#BUG: this has bugs and has duplicated code for what is inside of the menu. poems/poem/poem.ls
+	if id = Meteor.userId!
+		console.log "logged in user: #id"
+		if mun = Session.get 'mun'
+			console.log "logged in mun:", mun
+			Mun.id = mun._id
+		else
+			console.log "don't have mun yet..."
+	else# if Mun.id
+		console.log "logged out", Session.get 'mun'
+		Mun.id = null
+		Session.set 'mun', null
+
+
+
 Meteor.startup ->
 	doc = $ document
 	window.page = require 'visionmedia-page.js'
